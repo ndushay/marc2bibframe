@@ -1858,29 +1858,25 @@ declare function mbshared:generate-instance-from856 (
 :   @param  $marcxml        element is the 502 datafield
 :   @return bf:* as element()
 :)
-declare function mbshared:generate-dissertation(
+declare function mbshared:generate-dissertation (
     $d as element(marcxml:datafield)
-    ) as element ()*
+  ) as element ()*
 {
-
-(
-
+  (
     if ($d/marcxml:subfield[@code="c"] ) then
-        element bf:dissertationInstitution {element bf:Organization {
-                element bf:label {fn:string($d/marcxml:subfield[@code="c"])}}
-                }
-
+      element bf:dissertationInstitution {element bf:Organization {
+        element bf:label {fn:string($d/marcxml:subfield[@code="c"])}}
+      }
     else (),
 
-  if ($d/marcxml:subfield[@code="o"]) then
-      element bf:dissertationIdentifier  { element bf:Identifier {
-           element bf:identifierValue{fn:string($d/marcxml:subfield[@code="o"])}
-           }
-           }
-
+    if ($d/marcxml:subfield[@code="o"]) then
+      element bf:dissertationIdentifier {
+        element bf:Identifier {
+          element bf:identifierValue{fn:string($d/marcxml:subfield[@code="o"])}
+        }
+      }
     else ()
-
-   )
+  )
 };
 
 (:~
