@@ -1269,137 +1269,140 @@ declare function mbshared:generate-publication (
   ) as element ()*
 {
   (:first handle abc, for each b, set up a publication with any associated A's and Cs:)
-    if ($d/marcxml:subfield[@code="b"]) then
+  if ($d/marcxml:subfield[@code="b"]) then
 
-        for $pub at $x in $d/marcxml:subfield[@code="b"]
-          let $propname :=
-             if ($d/@tag="264" and $d/@ind2="3" ) then
-                 "bf:manufacture"
-               else if ($d/@tag="264" and $d/@ind2="2" ) then
-                 "bf:distribution"
-             else
-                  "bf:publication"
-             (:if there's only one c, it applies to multiple ab's:)
-             let $date:=      if ($d/marcxml:subfield[@code="c"][$x]) then
-                                    $d/marcxml:subfield[@code="c"][$x]
-                             else if ( $x gt 1 and $d/marcxml:subfield[@code="c"][$x - 1]) then
-                                      $d/marcxml:subfield[@code="c"][$x - 1]
-                                   else ()
-          return
-              element {$propname} {
-                  element bf:Provider {
-                   (:
-                            k-note: added call to clean-str here.
-                            We'll need to figure out where this is and
-                            isn't a problem
-                        :)
-                      element bf:providerName {
-                         element bf:Organization {
-                             element bf:label {marc2bfutils:chopPunctuation(marc2bfutils:clean-string(fn:string($pub)),"")},
-                             mbshared:generate-880-label($d,"provider")
-                         }
-                      }
-                      ,
-                      if ( $d/marcxml:subfield[@code="a"][$x]) then
-                          element bf:providerPlace {
-                             element bf:Place {
-                                 element bf:label {
-                                    marc2bfutils:chopPunctuation( marc2bfutils:clean-string($d/marcxml:subfield[@code="a"][$x]),"")},
-                                        mbshared:generate-880-label($d,"place")
-                             }
-                           }
+    for $pub at $x in $d/marcxml:subfield[@code="b"]
+      let $propname :=
+        if ($d/@tag="264" and $d/@ind2="3" ) then
+          "bf:manufacture"
+        else if ($d/@tag="264" and $d/@ind2="2" ) then
+          "bf:distribution"
+        else
+          "bf:publication"
 
-                      else (),
-                      if (fn:starts-with($date,"c")) then
-                      (:\D filters out "c" and other non-digits, but also ?, so switch to clean-string for now. may want "clean-date??:)
-                          element bf:copyrightDate {marc2bfutils:clean-string($date)}
-                       else if ( $date !=""  and fn:not(fn:starts-with($date,"c") )) then
-                         ( element bf:providerDate {marc2bfutils:chopPunctuation($date,".")},
-                              mbshared:generate-880-label($d,"providerDate")
-                              )
-                      else ()
-                      (:if ($d/marcxml:subfield[@code="c"][$x] and fn:starts-with($d/marcxml:subfield[@code="c"][$x],"c") ) then
+      (:if there's only one c, it applies to multiple ab's:)
+      let $date :=
+        if ($d/marcxml:subfield[@code="c"][$x]) then
+          $d/marcxml:subfield[@code="c"][$x]
+        else if ( $x gt 1 and $d/marcxml:subfield[@code="c"][$x - 1]) then
+          $d/marcxml:subfield[@code="c"][$x - 1]
+        else ()
 
-                          element bf:copyrightDate {marc2bfutils:clean-string($d/marcxml:subfield[@code="c"][$x])}
-                      else if ($d/marcxml:subfield[@code="c"][$x] and fn:not(fn:starts-with($d/marcxml:subfield[@code="c"][$x],"c") )) then
-                          element bf:providerDate {marc2bfutils:chopPunctuation($d/marcxml:subfield[@code="c"][$x],".")}
-                      else ():)
+      return
+        element {$propname} {
+          element bf:Provider {
+            (:
+              k-note: added call to clean-str here.
+              We'll need to figure out where this is and isn't a problem
+            :)
+            element bf:providerName {
+               element bf:Organization {
+                   element bf:label { marc2bfutils:chopPunctuation(marc2bfutils:clean-string(fn:string($pub)),"") },
+                   mbshared:generate-880-label($d,"provider")
+               }
+            },
+            if ( $d/marcxml:subfield[@code="a"][$x]) then
+              element bf:providerPlace {
+                element bf:Place {
+                  element bf:label {
+                    marc2bfutils:chopPunctuation( marc2bfutils:clean-string($d/marcxml:subfield[@code="a"][$x]),"")},
+                    mbshared:generate-880-label($d,"place")
                   }
-    }
-    (:there is no $b:)
-        else if ($d/marcxml:subfield[fn:matches(@code,"(a|c)")]) then
-              element bf:publication {
-                  element bf:Provider {
-                      for $pl in $d/marcxml:subfield[@code="a"]
-                      return element bf:providerPlace {
-                                     element bf:Place {
-                                         element bf:label {marc2bfutils:chopPunctuation(fn:string($pl),"")},
-                                         mbshared:generate-880-label($d,"place")
-                                     }
-                                 },
-
-                      for $pl in $d/marcxml:subfield[@code="c"]
-                        return
-                          if (fn:starts-with($pl,"c")) then
-                        element bf:providerDate {marc2bfutils:chopPunctuation($pl,".")}
-                          else
-                        element bf:copyrightDate {marc2bfutils:chopPunctuation($pl,".")}
-          }
-          }
-      else (),
-        (:handle $e,f,g like abc :)
-        if ($d/marcxml:subfield[@code="e"]) then
-            for $pub at $x in $d/marcxml:subfield[@code="e"]
-             let $propname := "bf:manufacture"
-             return
-                  element {$propname} {
-                      element bf:Provider {
-                         element bf:providerName {
-                          element bf:Organization {
-                             element bf:label {marc2bfutils:chopPunctuation(marc2bfutils:clean-string(fn:string($pub)),"")},
-                              mbshared:generate-880-label($d,"provider")
-                             }
-                             }
-                      ,
-                      if ( $d/marcxml:subfield[@code="f"][$x]) then
-                          element bf:providerPlace {
-                                 element bf:Place {
-                                     element bf:label { marc2bfutils:chopPunctuation( fn:string($d/marcxml:subfield[@code="f"][$x]),"")},
-                                     mbshared:generate-880-label($d,"place")
-                                     }
-                                     }
-                      else (),
-                      if ($d/marcxml:subfield[@code="g"][$x]) then
-                          (element bf:providerDate {marc2bfutils:chopPunctuation($d/marcxml:subfield[@code="g"][$x],".")},
-                                     mbshared:generate-880-label($d,"providerDate")
-                             )
-                      else if ($d/marcxml:subfield[@code="c"][$x]) then
-                        ( element bf:providerDate {marc2bfutils:chopPunctuation($d/marcxml:subfield[@code="c"][$x],".")},
-                        mbshared:generate-880-label($d,"providerDate")
-                        )
-                         else ()
-                  }
-    }
-    (:there is no $b:)
-        else if ($d/marcxml:subfield[fn:matches(@code,"(e|f)")]) then
-            element bf:publication {
-                element bf:Provider {
-                    for $pl in $d/marcxml:subfield[@code="e"]
-                      return element bf:providerPlace {
-                                 element bf:Place {
-                                             element bf:label {marc2bfutils:chopPunctuation(fn:string($pl),"")},
-                                             mbshared:generate-880-label($d,"place")
-                                     }
-                         },
-                    for $pl in $d/marcxml:subfield[@code="g"]
-                      return (element bf:providerDate {marc2bfutils:chopPunctuation($pl,".")},
-                      mbshared:generate-880-label($d,"providerDate") )
                 }
-            }
+            else (),
+            if (fn:starts-with($date,"c")) then
+              (:\D filters out "c" and other non-digits, but also ?, so switch to clean-string for now. may want "clean-date??:)
+              element bf:copyrightDate {marc2bfutils:clean-string($date)}
+            else if ( $date !=""  and fn:not(fn:starts-with($date,"c") )) then
+              ( element bf:providerDate {marc2bfutils:chopPunctuation($date,".")},
+                mbshared:generate-880-label($d,"providerDate")
+              )
+            else ()
+            (:if ($d/marcxml:subfield[@code="c"][$x] and fn:starts-with($d/marcxml:subfield[@code="c"][$x],"c") ) then
+                element bf:copyrightDate {marc2bfutils:clean-string($d/marcxml:subfield[@code="c"][$x])}
+            else if ($d/marcxml:subfield[@code="c"][$x] and fn:not(fn:starts-with($d/marcxml:subfield[@code="c"][$x],"c") )) then
+                element bf:providerDate {marc2bfutils:chopPunctuation($d/marcxml:subfield[@code="c"][$x],".")}
+            else ():)
+          }
+        }
 
-    else ()
+  (:there is no $b:)
+  else if ($d/marcxml:subfield[fn:matches(@code,"(a|c)")]) then
+    element bf:publication {
+      element bf:Provider {
+        for $pl in $d/marcxml:subfield[@code="a"]
+          return
+            element bf:providerPlace {
+              element bf:Place {
+                element bf:label { marc2bfutils:chopPunctuation(fn:string($pl),"") },
+                mbshared:generate-880-label($d,"place")
+              }
+            },
 
+            for $pl in $d/marcxml:subfield[@code="c"]
+              return
+                if (fn:starts-with($pl,"c")) then
+                  element bf:providerDate {marc2bfutils:chopPunctuation($pl,".")}
+                else
+                  element bf:copyrightDate {marc2bfutils:chopPunctuation($pl,".")}
+      }
+    }
+  else (),
+
+  (:handle $e,f,g like abc :)
+  if ($d/marcxml:subfield[@code="e"]) then
+    for $pub at $x in $d/marcxml:subfield[@code="e"]
+      let $propname := "bf:manufacture"
+      return
+        element {$propname} {
+          element bf:Provider {
+            element bf:providerName {
+              element bf:Organization {
+                element bf:label {marc2bfutils:chopPunctuation(marc2bfutils:clean-string(fn:string($pub)),"")},
+                mbshared:generate-880-label($d,"provider")
+              }
+            },
+            if ( $d/marcxml:subfield[@code="f"][$x]) then
+              element bf:providerPlace {
+                element bf:Place {
+                  element bf:label { marc2bfutils:chopPunctuation( fn:string($d/marcxml:subfield[@code="f"][$x]),"")},
+                  mbshared:generate-880-label($d,"place")
+                }
+              }
+            else (),
+            if ($d/marcxml:subfield[@code="g"][$x]) then
+              ( element bf:providerDate {marc2bfutils:chopPunctuation($d/marcxml:subfield[@code="g"][$x],".")},
+                mbshared:generate-880-label($d,"providerDate")
+              )
+            else if ($d/marcxml:subfield[@code="c"][$x]) then
+              ( element bf:providerDate {marc2bfutils:chopPunctuation($d/marcxml:subfield[@code="c"][$x],".")},
+                mbshared:generate-880-label($d,"providerDate")
+              )
+            else ()
+          }
+        }
+
+  (:there is no $e:)
+  else if ($d/marcxml:subfield[fn:matches(@code,"(e|f)")]) then
+    element bf:publication {
+      element bf:Provider {
+        for $pl in $d/marcxml:subfield[@code="e"]
+          return
+            element bf:providerPlace {
+              element bf:Place {
+                element bf:label {marc2bfutils:chopPunctuation(fn:string($pl),"")},
+                mbshared:generate-880-label($d,"place")
+              }
+            },
+            for $pl in $d/marcxml:subfield[@code="g"]
+              return (element bf:providerDate {marc2bfutils:chopPunctuation($pl,".")},
+            mbshared:generate-880-label($d,"providerDate") )
+      }
+    }
+
+  else ()
 };
+
 (:~
 :   This is the function generates 337,338  data for instance or work, based on mappings in $physdesc-list
 : Returns bf: node of elname
@@ -1408,11 +1411,10 @@ declare function mbshared:generate-publication (
 :   @param  $resource      string is the "work" or "instance"
 :   @return bf:*     element()
 :)
-declare function mbshared:generate-physdesc
-    (
-        $marcxml as element(marcxml:record),
-        $resource as xs:string
-    ) as element ()*
+declare function mbshared:generate-physdesc (
+    $marcxml as element(marcxml:record),
+    $resource as xs:string
+  ) as element ()*
 {
         (
              (:---337,338:)
