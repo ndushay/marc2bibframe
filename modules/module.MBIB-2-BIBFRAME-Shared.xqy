@@ -1886,96 +1886,118 @@ declare function mbshared:generate-dissertation (
 :                           may also contain hld:holdings
 :   @return bf:* as element()
 :)
-declare function mbshared:generate-holdings-from-hld(
+declare function mbshared:generate-holdings-from-hld (
     $marcxml as element(marcxml:record)?,
-
     $workId as xs:string
-
-    ) as element ()*
+  ) as element ()*
 {
-let $holdings:=$marcxml//hld:holdings
-let $heldBy:= if ($marcxml/marcxml:datafield[@tag="852"]/marcxml:subfield[@code="a"]) then
-                    fn:string($marcxml/marcxml:datafield[@tag="852"][1]/marcxml:subfield[@code="a"])
-                else ""
-let $custodialHistory:=mbshared:generate-simple-property($marcxml/marcxml:datafield[@tag="561"], "helditem")
-for $hold in $holdings/hld:holding
+  let $holdings := $marcxml//hld:holdings
+  let $heldBy :=
+    if ($marcxml/marcxml:datafield[@tag="852"]/marcxml:subfield[@code="a"]) then
+      fn:string($marcxml/marcxml:datafield[@tag="852"][1]/marcxml:subfield[@code="a"])
+    else ""
+  let $custodialHistory := mbshared:generate-simple-property($marcxml/marcxml:datafield[@tag="561"], "helditem")
+
+  for $hold in $holdings/hld:holding
     let $elm :=
-        if (  $hold/hld:volumes/hld:volume[2]) then "HeldMaterial" else "HeldItem"
+      if ( $hold/hld:volumes/hld:volume[2]) then
+        "HeldMaterial"
+      else
+        "HeldItem"
     let $summary-set :=
-            for $property in $hold/*
-                return
-                    if ( fn:matches(fn:local-name($property), "callNumber")) then
-                        (element bf:label {fn:string($property)},
-                        element bf:shelfMark {fn:string($property)})
-                    else if ( fn:matches(fn:local-name($property), "localLocation")) then
-                        element bf:subLocation {fn:string($property)}
-                    else if ( fn:matches(fn:local-name($property), "(enumeration|enumAndChron)")) then
-                        element bf:enumerationAndChronology {fn:string($property)}
+      for $property in $hold/*
+        return
+          if ( fn:matches(fn:local-name($property), "callNumber")) then
+            (
+              element bf:label {fn:string($property)},
+              element bf:shelfMark {fn:string($property)}
+            )
+          else if ( fn:matches(fn:local-name($property), "localLocation")) then
+            element bf:subLocation {fn:string($property)}
+          else if ( fn:matches(fn:local-name($property), "(enumeration|enumAndChron)")) then
+            element bf:enumerationAndChronology {fn:string($property)}
+          else if ( fn:matches( fn:local-name($property), "(publicNote|copyNumber)")) then
+            element {fn:concat("bf:", fn:local-name($property))} {fn:string($property)}
+          else ()
 
-                    else if ( fn:matches( fn:local-name($property), "(publicNote|copyNumber)")) then
-                        element {fn:concat("bf:", fn:local-name($property))} {fn:string($property)}
-                    else ()
-
-   let $item-set :=
-               if  ($hold/hld:volumes ) then
-                        for $vol in $hold/hld:volumes/hld:volume
-                            let $enum:=fn:normalize-space(fn:string($vol/hld:enumAndChron))
-                            let $circs:= $vol/ancestor::hld:holding/hld:circulations
-                            let $circ   :=
-                                for $circulation in $circs/hld:circulation[fn:normalize-space(fn:string(hld:enumAndChron ))=$enum]
-                                    let $status:= if ($circulation/hld:availableNow/@value="1") then "available" else  "not available"
-                                        return element circ {element bf:circulationStatus {$status},
-                                                if ($circulation/hld:itemId) then element bf:itemId  {fn:string($circulation/hld:itemId )} else ()
-                                                }
-
-
-                           return
-                              element bf:heldItem {
-                                element bf:HeldItem {
-                                    if ($circ/bf:itemId!='') then
-                                         attribute rdf:about {fn:concat($workId,"/item",fn:string($circ/bf:itemId))}
-                                    else (),
-                                    element bf:label {fn:string($vol/hld:enumAndChron)},
-                                    element bf:enumerationAndChronology  {$enum },
-                                     element bf:enumerationAndChronology {fn:string($vol/hld:enumeration)},
-                                     $circ/*
-                                  }
-                               }
-             else  (: no volumes,  just add circ  to the summary heldmaterial:)
-                        let $status:= if ($hold/hld:circulations/hld:circulation/hld:availableNow/@value="1") then "available" else  "not available"
-                        return  element bf:heldItem {
-                                    element bf:HeldItem {
-                                        if ($hold/hld:circulations/hld:circulation/hld:itemId) then
-                                            attribute rdf:about {fn:concat($workId,"/item",fn:string($hold/hld:circulations/hld:circulation/hld:itemId))}
-                                        else (),
-                                        element bf:circulationStatus {$status},
-                                            element bf:itemId  {fn:string($hold/hld:circulations/hld:circulation/hld:itemId )}
-                                        }
-                                    }
-
-
-     return (
-      if ($elm = "HeldItem" ) then
-         element bf:heldItem {
+    let $item-set :=
+      if ($hold/hld:volumes ) then
+        for $vol in $hold/hld:volumes/hld:volume
+          let $enum := fn:normalize-space(fn:string($vol/hld:enumAndChron))
+          let $circs := $vol/ancestor::hld:holding/hld:circulations
+          let $circ :=
+            for $circulation in $circs/hld:circulation[fn:normalize-space(fn:string(hld:enumAndChron ))=$enum]
+              let $status :=
+                if ($circulation/hld:availableNow/@value="1") then
+                  "available"
+                else
+                  "not available"
+            return
+              element circ {
+                element bf:circulationStatus {$status},
+                if ($circulation/hld:itemId) then
+                  element bf:itemId  {fn:string($circulation/hld:itemId )}
+                else ()
+              }
+          return
+            element bf:heldItem {
+              element bf:HeldItem {
+                if ($circ/bf:itemId!='') then
+                  attribute rdf:about {fn:concat($workId,"/item",fn:string($circ/bf:itemId))}
+                else (),
+                element bf:label {fn:string($vol/hld:enumAndChron)},
+                element bf:enumerationAndChronology  {$enum },
+                element bf:enumerationAndChronology {fn:string($vol/hld:enumeration)},
+                $circ/*
+              }
+            }
+      else  (: no volumes,  just add circ  to the summary heldmaterial:)
+        let $status :=
+          if ($hold/hld:circulations/hld:circulation/hld:availableNow/@value="1") then
+            "available"
+          else
+            "not available"
+        return
+          element bf:heldItem {
             element bf:HeldItem {
+              if ($hold/hld:circulations/hld:circulation/hld:itemId) then
+                attribute rdf:about {fn:concat($workId,"/item",fn:string($hold/hld:circulations/hld:circulation/hld:itemId))}
+              else (),
+              element bf:circulationStatus {$status},
+              element bf:itemId  {fn:string($hold/hld:circulations/hld:circulation/hld:itemId )}
+            }
+          }
+
+    return (
+      if ($elm = "HeldItem" ) then
+        element bf:heldItem {
+          element bf:HeldItem {
             $item-set/bf:HeldItem/@rdf:about,
-             $summary-set, $item-set//bf:HeldItem/*[fn:not(fn:local-name()='label')],
-             $custodialHistory,
-             if ($heldBy!="") then element bf:heldBy {element bf:Organization {element bf:label {$heldBy}}} else ()
-            }
-            }
+            $summary-set, $item-set//bf:HeldItem/*[fn:not(fn:local-name()='label')],
+            $custodialHistory,
+            if ($heldBy!="") then
+              element bf:heldBy {element bf:Organization {element bf:label {$heldBy}}}
+            else ()
+          }
+        }
 
       else
-        element bf:heldMaterial{
-               element bf:HeldMaterial {
-                     $summary-set,
-                     $item-set,
-                     if ($heldBy!="") then element bf:heldBy {element bf:Organization {element bf:label {$heldBy}}} else ()
-                    }
-            }
+        element bf:heldMaterial {
+          element bf:HeldMaterial {
+            $summary-set,
+            $item-set,
+            if ($heldBy!="") then
+              element bf:heldBy {
+                element bf:Organization {
+                  element bf:label {$heldBy}
+                }
+              }
+            else ()
+          }
+        }
     )
-
 };
+
 (:~
 :   This is the function generates holdings properties from hld:holdings.
 :
