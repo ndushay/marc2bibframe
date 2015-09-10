@@ -1551,7 +1551,6 @@ declare function mbshared:generate-physdesc (
   and moved $instance (generating the rest of the instance from the 260 out
 :   @param  $d        element is the 020  $a
 :   @param  $isbn-string       is the isbn string; may have come from subfield or calculation
-
 :  @param  $instance  element bf:Instance is generated fromthe first 260
 :   @return bf:* as element()
 :
@@ -1718,31 +1717,28 @@ declare function mbshared:generate-instance-fromISBN (
 declare function mbshared:generate-instance-from250 (
     $d as element(marcxml:datafield),
     $workID as xs:string
-    ) as element ()*
+  ) as element ()*
 {
-
-    (:get the physical details:)
-    (: We only ask for the first 260 :)
-
+  (:get the physical details:)
+  (: We only ask for the first 260 :)
   let $instance := mbshared:generate-instance-from260($d/../marcxml:datafield[fn:matches(@tag, "(260|261|262|264|300)")][1], $workID)
 
-    let $instanceOf :=
-        element bf:instanceOf {
-            attribute rdf:resource {$workID}
-        }
-
-    return
-        element bf:Instance {
-            (if ( fn:exists($instance) ) then
-                (
-                    $instance/@*,
-                    $instance/*
-                )
-            else
-                $instanceOf)
-
+  let $instanceOf :=
+    element bf:instanceOf {
+      attribute rdf:resource {$workID}
     }
 
+  return
+    element bf:Instance {
+      (
+        if ( fn:exists($instance) ) then
+          (
+            $instance/@*,
+            $instance/*
+          )
+        else
+          $instanceOf)
+    }
 };
 
 (:~
@@ -1752,96 +1748,110 @@ declare function mbshared:generate-instance-from250 (
 :   @param  $marcxml        element is the whole record
 :   @return bf:* as element()
 : contributor ex:13546156
-
 :)
-declare function mbshared:generate-instance-from856(
+declare function mbshared:generate-instance-from856 (
     $d as element(marcxml:datafield),
     $workID as xs:string
-    ) as element ()*
+  ) as element ()*
 {
-    (:let $bibid:=$d/../marcxml:controlfield[@tag="001"]:)
-        let $category:=
-            if (      fn:contains(
-                fn:string-join($d/marcxml:subfield[@code="u"],""),"hdl.") and(:u is repeatable:)
-                fn:not(fn:matches(fn:string($d/marcxml:subfield[@code="3"]),"finding aid","i") )
-                ) then
-                "instance"
-            else if (fn:matches(fn:string($d/marcxml:subfield[@code="3"]) ,"(pdf|page view) ","i"))   then
-                "instance"
-            else if ($d/@ind1="4" and $d/@ind2="0" ) then
-                "instance"
-            else if ($d/@ind1="4" and $d/@ind2="1" and fn:not(fn:string($d/marcxml:subfield[@code="3"]) )  ) then
-                "instance"
-            else if (fn:matches(fn:string($d/marcxml:subfield[@code="3"]),"finding aid","i") ) then
-                "findaid"
-            else
-                "annotation"
-            let $annotates:=  if ($workID!="person" and $category="annotation") then
-                        element bf:annotates {
-                            attribute rdf:resource {$workID}
-                        }
-                       else ()
+  (:let $bibid:=$d/../marcxml:controlfield[@tag="001"]:)
+  let $category:=
+    if (fn:contains(
+          fn:string-join($d/marcxml:subfield[@code="u"],""),"hdl.") and(:u is repeatable:)
+          fn:not(fn:matches(fn:string($d/marcxml:subfield[@code="3"]),"finding aid","i") )
+          ) then
+      "instance"
+    else if (fn:matches(fn:string($d/marcxml:subfield[@code="3"]) ,"(pdf|page view) ","i")) then
+      "instance"
+    else if ($d/@ind1="4" and $d/@ind2="0" ) then
+      "instance"
+    else if ($d/@ind1="4" and $d/@ind2="1" and fn:not(fn:string($d/marcxml:subfield[@code="3"]) ) ) then
+      "instance"
+    else if (fn:matches(fn:string($d/marcxml:subfield[@code="3"]),"finding aid","i") ) then
+      "findaid"
+    else
+      "annotation"
 
-        let $type:=
-            if (fn:matches(fn:string-join($d/marcxml:subfield[@code="u"],""),"catdir","i")) then
-                if (fn:matches(fn:string($d/marcxml:subfield[@code="3"]),"contents","i")) then "table of contents"
-                else if (fn:matches(fn:string($d/marcxml:subfield[@code="3"]),"sample","i")) then "sample text"
-                else if (fn:matches(fn:string($d/marcxml:subfield[@code="3"]),"contributor","i")) then "contributor biography"
-                else if (fn:matches(fn:string($d/marcxml:subfield[@code="3"]),"publisher","i")) then "publisher summary"
-                else  ()
-            else ()
+  let $annotates:=
+    if ($workID!="person" and $category="annotation") then
+      element bf:annotates {
+        attribute rdf:resource {$workID}
+      }
+    else ()
+
+  let $type:=
+    if (fn:matches(fn:string-join($d/marcxml:subfield[@code="u"],""),"catdir","i")) then
+      if (fn:matches(fn:string($d/marcxml:subfield[@code="3"]),"contents","i")) then
+        "table of contents"
+      else if (fn:matches(fn:string($d/marcxml:subfield[@code="3"]),"sample","i")) then
+        "sample text"
+      else if (fn:matches(fn:string($d/marcxml:subfield[@code="3"]),"contributor","i")) then
+        "contributor biography"
+      else if (fn:matches(fn:string($d/marcxml:subfield[@code="3"]),"publisher","i")) then
+        "publisher summary"
+      else  ()
+    else ()
 
   return
-   if ( $category="instance" ) then
-                element bf:hasInstance {
-                  element bf:Instance {
-                          element rdf:type {attribute rdf:resource {"http://bibframe.org/vocab/Electronic"}},
-                        element bf:label {
-                          if ($d/marcxml:subfield[@code="3"]) then fn:normalize-space(fn:string($d/marcxml:subfield[@code="3"]))
-                          else "Electronic Resource"
-                        },
-                          mbshared:handle-856u($d)                     ,
-                      element bf:instanceOf {
-                          attribute rdf:resource {$workID}
-                      },
-                        $annotates
+    if ( $category="instance" ) then
+      element bf:hasInstance {
+        element bf:Instance {
+          element rdf:type {attribute rdf:resource {"http://bibframe.org/vocab/Electronic"}},
+          element bf:label {
+            if ($d/marcxml:subfield[@code="3"]) then
+              fn:normalize-space(fn:string($d/marcxml:subfield[@code="3"]))
+            else
+              "Electronic Resource"
+          },
+          mbshared:handle-856u($d),
+          element bf:instanceOf {
+            attribute rdf:resource {$workID}
+          },
+          $annotates
+        }
+      }
+    else
+      let $property-name:=
+        if ($type="table of contents") then
+          "bf:TableOfContents"
+        else if ($type="publisher summary") then
+          "bf:Summary"
+        else
+          "bf:Annotation"
+      return
+        element bf:hasAnnotation {
+          element {$property-name} {
+            if (fn:string($d/marcxml:subfield[@code="3"]) ne "" or $type) then
+              element bf:label {
+                if (fn:string($d/marcxml:subfield[@code="3"]) ne "") then
+                  fn:string($d/marcxml:subfield[@code="3"])
+                else if ($type) then
+                  $type
+                else ()
+              }
+            else (),
+            for $u in $d/marcxml:subfield[@code="u"]
+              let $property-name :=
+                if ($type="table of contents") then
+                  "bf:tableOfContents"
+                else if ($type="publisher summary") then
+                  "bf:review"
+                else
+                  "bf:annotationBody"
+              return
+                element {$property-name} {
+                  attribute rdf:resource {
+                    fn:normalize-space(fn:string($u))
                   }
-                }
-             else
-                let $property-name:= if ($type="table of contents") then "bf:TableOfContents"
-                                        else if ($type="publisher summary") then "bf:Summary"
-                                       else "bf:Annotation"
-                  return   element bf:hasAnnotation {
-
-                element {$property-name}{
-
-                 if (fn:string($d/marcxml:subfield[@code="3"]) ne "" or $type) then
-                     element bf:label {
-                            if (fn:string($d/marcxml:subfield[@code="3"]) ne "") then
-                                      fn:string($d/marcxml:subfield[@code="3"])
-                            else if ($type) then
-                                     $type
-                                     else ()
-                            }
-                    else (),
-
-                      for $u in $d/marcxml:subfield[@code="u"]
-                        let $property-name:= if ($type="table of contents") then "bf:tableOfContents"
-                                        else if ($type="publisher summary") then "bf:review"
-                                       else "bf:annotationBody"
-                        return element {$property-name} {
-                                          attribute rdf:resource {
-                                           fn:normalize-space(fn:string($u))
-                                          }
-                          },
-
-                      for $s in $d/marcxml:subfield[@code="z"]
-                          return element bf:copyNote {fn:string($s)},
-                      $annotates
-                  }
-                }
+                },
+                for $s in $d/marcxml:subfield[@code="z"]
+                  return element bf:copyNote {fn:string($s)},
+                  $annotates
+          }
+        }
 
 };
+
 (:~
 :   This is the function generates dissertation on Work from 502.
 : (dissertation is no longer a subclass of Work
