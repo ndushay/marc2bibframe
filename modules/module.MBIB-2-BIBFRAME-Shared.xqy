@@ -2005,23 +2005,20 @@ declare function mbshared:generate-holdings-from-hld (
 :                           may also contain hld:holdings
 :   @return bf:* as element()
 :)
-declare function mbshared:generate-holdings-from-hrecords(
+declare function mbshared:generate-holdings-from-hrecords (
     $collection as element(marcxml:collection)?,
-
     $workId as xs:string
-
-    ) as element ()*
+  ) as element ()*
 {
-
-
-for $r in $collection/marcxml:record[2](:[fn:string(@type)="Holdings"]:)
-    return element bf:heldItem { element bf:HeldItem {
-
-            mbshared:generate-simple-property($r/marcxml:datafield,"holdings")
-         }
-         }
-
+  for $r in $collection/marcxml:record[2](:[fn:string(@type)="Holdings"]:)
+    return
+      element bf:heldItem {
+        element bf:HeldItem {
+          mbshared:generate-simple-property($r/marcxml:datafield,"holdings")
+        }
+      }
 };
+
 (:~
 :   This is the function generates holdings resources.
 :
@@ -2029,10 +2026,10 @@ for $r in $collection/marcxml:record[2](:[fn:string(@type)="Holdings"]:)
 :                           may also contain hld:holdings
 :   @return bf:* as element()
 :)
-declare function mbshared:generate-holdings(
+declare function mbshared:generate-holdings (
     $marcxml as element(marcxml:record),
     $workID as xs:string
-    ) as element ()*
+  ) as element ()*
 {
 (:options: marcxml:records contains opacxml in hld:holdings, or marcxml:record/ancestor:collection contains
 marcxml:record[@type="Holdings"]:)
