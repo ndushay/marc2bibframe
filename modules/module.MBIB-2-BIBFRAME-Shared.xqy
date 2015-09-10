@@ -1558,174 +1558,164 @@ declare function mbshared:generate-physdesc (
 :work with this example, bibid 13891080
 :
 :)
-declare function mbshared:generate-instance-fromISBN(
+declare function mbshared:generate-instance-fromISBN (
     $d as element(marcxml:record),
     $isbn-set as element (bf:set),
     (:something needed to be a null instance, no pub info  :)
     $instance as element (bf:Instance)?,
-
     $workID as xs:string
-    ) as element ()*
-
+  ) as element ()*
 {
+  let $isbn-extra:=fn:normalize-space(fn:tokenize(fn:string($isbn-set/marcxml:subfield[1]),"\(")[2])
+  let $volume :=
+    (:too hard to parse :)
+    (: if (fn:contains($isbn-extra,":")) then
+         fn:replace(marc2bfutils:clean-string(fn:normalize-space(fn:tokenize($isbn-extra,":")[2])),"\)","")
+       else:)
+    fn:replace(marc2bfutils:clean-string(fn:normalize-space($isbn-extra)),"\)","")
 
-    let $isbn-extra:=fn:normalize-space(fn:tokenize(fn:string($isbn-set/marcxml:subfield[1]),"\(")[2])
-    let $volume:=
-       (:too hard to parse :)
-      (:  if (fn:contains($isbn-extra,":")) then
-            fn:replace(marc2bfutils:clean-string(fn:normalize-space(fn:tokenize($isbn-extra,":")[2])),"\)","")
-        else:)
-            fn:replace(marc2bfutils:clean-string(fn:normalize-space($isbn-extra)),"\)","")
-    let $v-test:=
-        fn:replace(marc2bfutils:clean-string(fn:normalize-space($isbn-extra)),"\)","")
+  let $v-test := fn:replace(marc2bfutils:clean-string(fn:normalize-space($isbn-extra)),"\)","")
 
- let $volume-test:= ($v-test, fn:tokenize($v-test,":")[1],fn:tokenize($v-test,":")[2])
- let $volume-test:= fn:tokenize($v-test,":")[2]
+  let $volume-test := ($v-test, fn:tokenize($v-test,":")[1],fn:tokenize($v-test,":")[2])
+  let $volume-test := fn:tokenize($v-test,":")[2]
 
-    let $volume-info-test:=
-        if (fn:not(fn:empty($volume-test ))) then
-        for $v in  $volume-test
-            for $content in $d/marcxml:datafield[@tag="505"]/marcxml:subfield[@code="a"]
-                for $vol in fn:tokenize(fn:string($content),"--")[fn:contains(.,$v)][1]
+  let $volume-info-test:=
+    if (fn:not(fn:empty($volume-test ))) then
+      for $v in  $volume-test
+        for $content in $d/marcxml:datafield[@tag="505"]/marcxml:subfield[@code="a"]
+          for $vol in fn:tokenize(fn:string($content),"--")[fn:contains(.,$v)][1]
             (:for $vol in fn:tokenize(fn:string($d/marcxml:datafield[@tag="505"]/marcxml:subfield[@code="a"]),"--")[fn:contains(.,$v)][1]:)
-          return if  (fn:contains($vol,$v)) then element bf:subtitle {fn:concat("experimental 505a matching to isbn:",$vol)} else ()
-        else ()
+            return
+              if (fn:contains($vol,$v)) then
+                element bf:subtitle {fn:concat("experimental 505a matching to isbn:",$vol)}
+              else ()
+    else ()
 
-    let $volume-info:= ()
+  let $volume-info:= ()
     (:bib id 467 has multiple matches for t 1: t 1, t 11, t12 etc:)
-        (:if ($volume ) then
+       (:if ($volume ) then
             for $vol in fn:tokenize(fn:string($d/marcxml:datafield[@tag="505"]/marcxml:subfield[@code="a"]),"--")[fn:contains(.,$volume)][1]
           return if  (fn:contains($vol,$volume)) then element bf:subtitle {fn:concat("experimental 505a matching to isbn:",$vol)} else ()
-        else ():)
+       else ():)
 
-    let $physform:=
-        if (fn:tokenize( $isbn-set/marcxml:subfield[1],"\(")[1]) then
-            marc2bfutils:clean-string(fn:normalize-space(fn:tokenize($isbn-set/marcxml:subfield[1],"\(")[2]))
-        else ()
+  let $physform:=
+    if (fn:tokenize( $isbn-set/marcxml:subfield[1],"\(")[1]) then
+      marc2bfutils:clean-string(fn:normalize-space(fn:tokenize($isbn-set/marcxml:subfield[1],"\(")[2]))
+    else ()
 
-    let $physicalForm:=
-            if (fn:matches($physform,"(pbk|softcover)","i")) then
-                "paperback"
-            else if (fn:matches($physform,"(hbk|hdbk|hardcover|hc|hard)","i") ) then
-                "hardback"
-            else if (fn:matches($physform,"(ebook|eresource|e-isbn|ebk)","i") ) then
-                "electronic resource"
-            else if (fn:contains($physform,"lib. bdg.") ) then
-                "library binding"
-
-            else
-                ()
+  let $physicalForm:=
+    if (fn:matches($physform,"(pbk|softcover)","i")) then
+      "paperback"
+    else if (fn:matches($physform,"(hbk|hdbk|hardcover|hc|hard)","i") ) then
+      "hardback"
+    else if (fn:matches($physform,"(ebook|eresource|e-isbn|ebk)","i") ) then
+      "electronic resource"
+    else if (fn:contains($physform,"lib. bdg.") ) then
+      "library binding"
+    else ()
 
     (:9781555631185 (v. 4. print):)
-    let $i-title :=  (:this already exists in the output?:)
-        if ($d/marcxml:datafield[@tag = "245"]) then
-            mbshared:get-title($d/marcxml:datafield[@tag = "245"], "instance")
+  let $i-title :=  (:this already exists in the output?:)
+    if ($d/marcxml:datafield[@tag = "245"]) then
+      mbshared:get-title($d/marcxml:datafield[@tag = "245"], "instance")
+    else ()
+
+  let $extent-title :=
+    if ($volume ne "") then
+      for $t in $i-title
+        return
+          element bf:title {
+            $t/@*,
+            fn:normalize-space(fn:concat(xs:string($t), " (", $volume, ")"))
+          }
+    else if ($physicalForm) then
+      for $t in $i-title
+        return
+          element bf:title {
+            $t/@*,
+            fn:normalize-space(fn:concat(xs:string($t), " (", $physicalForm, ")"))
+          }
+    else if ($physform ne "") then
+      for $t in $i-title
+        return
+          element bf:title {
+            $t/@*,
+            fn:normalize-space(fn:concat(xs:string($t), " (", $physform, ")"))
+          }
+    else ()
+
+
+  let $clean-isbn :=
+    for $item in $isbn-set/bf:isbn
+      return marc2bfutils:clean-string(fn:normalize-space(fn:tokenize( fn:string($item),"\(")[1]))
+
+  let $isbn :=
+    for $i in $clean-isbn
+      let $element-name :=
+        if (fn:string-length($i) gt 11  ) then
+          "bf:isbn13"
         else
-            ()
-
-
-    let $extent-title :=
-        if ($volume ne "") then
-            for $t in $i-title
-            return
-                element bf:title {
-                    $t/@*,
-                    fn:normalize-space(fn:concat(xs:string($t), " (", $volume, ")"))
-
-                }
-        else if ($physicalForm) then
-            for $t in $i-title
-            return
-                element bf:title {
-                    $t/@*,
-                    fn:normalize-space(fn:concat(xs:string($t), " (", $physicalForm, ")"))
-                }
-        else if ($physform ne "") then
-            for $t in $i-title
-            return
-                element bf:title {
-                    $t/@*,
-                    fn:normalize-space(fn:concat(xs:string($t), " (", $physform, ")"))
-                }
-        else
-           ()
-
-
-    let $clean-isbn:=
-        for $item in $isbn-set/bf:isbn
-          return marc2bfutils:clean-string(fn:normalize-space(fn:tokenize( fn:string($item),"\(")[1]))
-
-
-    let $isbn :=
-        for $i in $clean-isbn
-        let $element-name :=
-            if (fn:string-length($i) gt 11  ) then
-                "bf:isbn13"
-            else
-                "bf:isbn10"
-        return (
-                element {$element-name} {
-                attribute rdf:resource {fn:concat("http://isbn.example.org/",fn:normalize-space($i))}
-                },
-
-                if ($element-name ="bf:isbn10" and $physicalForm!=() ) then
-                    element bf:isbn10 {
-                        element bf:Identifier {
-                            element bf:identifierValue {fn:normalize-space($i)},
-                            element bf:identifierScheme { attribute rdf:resource {"http://id.loc.gov/vocabulary/identifiers/isbn"} },
-                            element bf:identifierQualifier {fn:normalize-space($physicalForm)}
-                        }
-                    }
-                    else ()
-
-               )
-
-    let $instanceOf :=
-        element bf:instanceOf {
-            attribute rdf:resource {$workID}
+          "bf:isbn10"
+    return (
+      element {$element-name} {
+        attribute rdf:resource {fn:concat("http://isbn.example.org/",fn:normalize-space($i))}
+      },
+      if ($element-name ="bf:isbn10" and $physicalForm!=() ) then
+        element bf:isbn10 {
+          element bf:Identifier {
+            element bf:identifierValue {fn:normalize-space($i)},
+            element bf:identifierScheme { attribute rdf:resource {"http://id.loc.gov/vocabulary/identifiers/isbn"} },
+            element bf:identifierQualifier {fn:normalize-space($physicalForm)}
+          }
         }
+      else ()
+    )
 
-    return
-        element bf:Instance {
+  let $instanceOf :=
+    element bf:instanceOf {
+      attribute rdf:resource {$workID}
+    }
 
-            (: See extent-title above :)
-            (: if ($volume) then element bf:title{ $volume} else (), :)
-              $extent-title,
-                $isbn,
-            (:for $t in $extent-title
-            return
-                    element bf:label {
-                        $t/@*,
-                        xs:string($t)
-                    },:)
-            if ($physicalForm) then      element bf:format {$physicalForm} else (),
-            $volume-info,
-
-        (:not done yet:  2013-05-21 :)
-      (:  element bf:testvtest{$v-test},
+  return
+    element bf:Instance {
+      (: See extent-title above :)
+      (: if ($volume) then element bf:title{ $volume} else (), :)
+      $extent-title,
+      $isbn,
+      (:for $t in $extent-title
+         return
+           element bf:label {
+             $t/@*,
+             xs:string($t)
+           },:)
+      if ($physicalForm) then
+        element bf:format {$physicalForm} else (),
+      $volume-info,
+      (:not done yet:  2013-05-21 :)
+      (: element bf:testvtest{$v-test},
         element bf:testvolume{$volume},
         element bf:testvolumetest{   $volume-test},:)
 
-             if ( fn:exists($instance) ) then
-                  (
-                      $instance/@*,
-                      if ($volume or $volume-info) then
-                         $instance/*[fn:not(fn:local-name()="title") and fn:not(fn:local-name()="extent")]
-                      else
-                         $instance/*
-                  )
-              else
-                  $instanceOf
+      if ( fn:exists($instance) ) then
+        (
+          $instance/@*,
+          if ($volume or $volume-info) then
+             $instance/*[fn:not(fn:local-name()="title") and fn:not(fn:local-name()="extent")]
+          else
+             $instance/*
+        )
+      else
+        $instanceOf
     }
-
 };
+
 (:~
 :   This is the function generates edition instance resources.
 : Makes a duplicate? I don't see anything different from the 260
 :   @param  $d        element is each 250 after the first
 :   @return bf:* as element()
 :)
-declare function mbshared:generate-instance-from250(
+declare function mbshared:generate-instance-from250 (
     $d as element(marcxml:datafield),
     $workID as xs:string
     ) as element ()*
